@@ -1,0 +1,4 @@
+Important stuff:
+
+- I am using React Native Framework
+- Using Expo as the Framework with tools for development
