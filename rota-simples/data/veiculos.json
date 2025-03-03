@@ -1,0 +1,28 @@
+[
+    {
+      "Veículo": "Motocicleta",
+      "Combustível/Motorização": "Gasolina",
+      "Emissões (gCO2/km)": 62.69,
+      "Fonte 1": "Inmetro",
+      "Fonte 2": "",
+      "Explicação": "Emissões de uma motocicleta de amostra"
+    },
+
+    {
+        "Veículo": "Ônibus",
+        "Combustível/Motorização": "Diesel B10",
+        "Emissões (gCO2/km)": 816.00,
+        "Fonte 1": "Evelyn",
+        "Fonte 2": "",
+        "Explicação": "Emissões do ônibus convêncional"
+    },
+    
+    {
+    "Veículo": "Carro Compacto",
+    "Combustível/Motorização": "ICEVs flex - Etanol Hidratado",
+    "Emissões (gCO2/km)": 107.00,
+    "Fonte 1": "ICCT",
+    "Fonte 2": "Inmetro",
+    "Explicação": "Carro compacto popular 2023, de combustão interna, emissão no ciclo de vida, operando exclusivamente com Etanol Hidratado"
+    }
+]
