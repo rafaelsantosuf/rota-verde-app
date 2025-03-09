@@ -4,6 +4,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import polyline from '@mapbox/polyline';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import { Picker } from '@react-native-picker/picker';
 
 const Rota = () => {
   const [origem, setOrigem] = useState(null);
@@ -11,6 +12,8 @@ const Rota = () => {
   const [rota, setRota] = useState(null);
   const [modoTransporte, setModoTransporte] = useState("driving");
   const [modalVisivel, setModalVisivel] = useState(false);
+  const [veiculo, setVeiculo] = useState("carro");
+  const [combustivel, setCombustivel] = useState("gasolina");
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -111,6 +114,18 @@ const Rota = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text>Escolha o veículo e o combustível</Text>
+            <View style={styles.pickerContainer}>
+              <Picker selectedValue={veiculo} onValueChange={(itemValue) => setVeiculo(itemValue)}>
+                <Picker.Item label="Carro" value="carro" />
+                <Picker.Item label="Moto" value="moto" />
+              </Picker>
+            </View>
+            <View style={styles.pickerContainer}>
+              <Picker selectedValue={combustivel} onValueChange={(itemValue) => setCombustivel(itemValue)}>
+                <Picker.Item label="Gasolina" value="gasolina" />
+                <Picker.Item label="Etanol" value="etanol" />
+              </Picker>
+            </View>
             <Pressable onPress={() => setModalVisivel(false)} style={styles.closeButton}>
               <Text style={{ color: "white" }}>Confirmar</Text>
             </Pressable>
@@ -125,38 +140,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   autocomplete: { container: { flex: 0 }, textInput: { height: 40, borderWidth: 1, borderColor: '#E5E5E5' } },
   map: { flex: 1 },
-  botoesContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginVertical: 10,
-  },
-  button: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#444",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    width: 300,
-    padding: 20,
-    backgroundColor: "white",
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  closeButton: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: "#43B877",
-    borderRadius: 5,
-  },
+  botoesContainer: { flexDirection: "row", justifyContent: "space-around", marginVertical: 10 },
+  button: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#444", justifyContent: "center", alignItems: "center" },
+  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.5)" },
+  modalContent: { width: 300, padding: 20, backgroundColor: "white", borderRadius: 10, alignItems: "center" },
+  pickerContainer: { width: '100%', height: 50, justifyContent: 'center', backgroundColor: '#f0f0f0', borderRadius: 5, marginVertical: 10 },
+  closeButton: { marginTop: 20, padding: 10, backgroundColor: "#43B877", borderRadius: 5 },
 });
 
 export default Rota;
