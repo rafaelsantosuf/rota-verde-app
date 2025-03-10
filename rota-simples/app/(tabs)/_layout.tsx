@@ -1,7 +1,8 @@
 import { Tabs } from 'expo-router';
+import { StatusBar } from "expo-status-bar";
 import React from 'react';
 import { Platform } from 'react-native';
-
+import {Ionicons} from "@expo/vector-icons";
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -26,20 +27,25 @@ export default function TabLayout() {
           default: {},
         }),
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="rota" options={{
+        headerTitle: "Rota",
+        tabBarIcon: ({color}) => (
+          <Ionicons 
+            name="home" size={30} 
+            color={"#43B877"}
+          />
+        ),
+
+        }} />
+      <Tabs.Screen name="dados" options = {{
+        headerTitle: "Dados",
+        tabBarIcon: ({color}) => (
+          <Ionicons 
+            name="folder" size={30}
+            color={"#43B877"} 
+          />
+        ),
+        }} />
     </Tabs>
   );
 }

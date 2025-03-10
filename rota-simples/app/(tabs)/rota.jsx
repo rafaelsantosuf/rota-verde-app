@@ -5,6 +5,17 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import polyline from '@mapbox/polyline';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import { Picker } from '@react-native-picker/picker';
+import dadosVeiculos from '../../data/veiculos.json';
+
+// Armazena todas as opções de veículos
+let Veiculos = dadosVeiculos.veiculos.map(veiculo => veiculo.tipo).filter(tipo => tipo.toLowerCase().includes("carro"));
+const equivalentes = {
+  "driving": "Carro",
+  "motorcycle": "Moto",
+  "transit": "Ônibus",
+};
+
+let Combustiveis = dadosVeiculos.veiculos.map(veiculo => veiculo.combustiveis).flat().map(combustivel => combustivel.tipo);
 
 const Rota = () => {
   const [origem, setOrigem] = useState(null);
@@ -12,8 +23,8 @@ const Rota = () => {
   const [rota, setRota] = useState(null);
   const [modoTransporte, setModoTransporte] = useState("driving");
   const [modalVisivel, setModalVisivel] = useState(false);
-  const [veiculo, setVeiculo] = useState("carro");
-  const [combustivel, setCombustivel] = useState("gasolina");
+  const [veiculo, setVeiculo] = useState("Carro Compacto");
+  const [combustivel, setCombustivel] = useState("Gasolina ou Etanol");
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -25,7 +36,7 @@ const Rota = () => {
   const buscarRota = async () => {
     if (!origem || !destino) return;
 
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origem.latitude},${origem.longitude}&destination=${destino.latitude},${destino.longitude}&mode=${modoTransporte}&departure_time=now&alternatives=false&key=chave`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origem.latitude},${origem.longitude}&destination=${destino.latitude},${destino.longitude}&mode=${modoTransporte}&departure_time=now&alternatives=false&key=AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA`;
 
     try {
       const response = await fetch(url);
@@ -59,6 +70,27 @@ const Rota = () => {
     }
   };
 
+  const filtraVeiculo = (veiculo) => {
+
+    if (equivalentes.hasOwnProperty(veiculo)) {
+
+      const tipoVeiculo = equivalentes[veiculo];
+
+      Veiculos = dadosVeiculos.veiculos.filter(veiculo => veiculo.tipo.toLowerCase().includes(tipoVeiculo.toLowerCase())).map(veiculo => veiculo.tipo);
+
+    } 
+  };
+
+  const filtraCombustivel = (TipoVeiculo) => {
+
+    const veiculoSelecionado = dadosVeiculos.veiculos.find(veiculo => veiculo.tipo.toLowerCase() === TipoVeiculo.toLowerCase());
+  
+    if (veiculoSelecionado) {
+      Combustiveis = veiculoSelecionado.combustiveis.map(combustivel => combustivel.tipo);
+    }
+  };
+
+
   return (
     <View style={styles.container}>
       <GooglePlacesAutocomplete
@@ -67,7 +99,7 @@ const Rota = () => {
           latitude: details.geometry.location.lat,
           longitude: details.geometry.location.lng
         })}
-        query={{ key: 'chave', language: 'pt-BR' }}
+        query={{ key: 'AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA', language: 'pt-BR' }}
         fetchDetails
         styles={styles.autocomplete}
       />
@@ -78,7 +110,7 @@ const Rota = () => {
           latitude: details.geometry.location.lat,
           longitude: details.geometry.location.lng
         })}
-        query={{ key: 'chave', language: 'pt-BR' }}
+        query={{ key: 'AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA', language: 'pt-BR' }}
         fetchDetails
         styles={styles.autocomplete}
       />
@@ -91,7 +123,10 @@ const Rota = () => {
           { value: "motorcycle", icon: "motorcycle" }].map(({ value, icon }) => (
           <Pressable
             key={value}
-            onPress={() => setModoTransporte(value)}
+            onPress={() => {
+              setModoTransporte(value);
+              filtraVeiculo(value);
+            }}
             style={styles.button}
           >
             <Icon 
@@ -111,24 +146,35 @@ const Rota = () => {
 
       {/* MODAL */}
       <Modal visible={modalVisivel} animationType="slide" transparent>
+
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text>Escolha o veículo e o combustível</Text>
+
             <View style={styles.pickerContainer}>
-              <Picker selectedValue={veiculo} onValueChange={(itemValue) => setVeiculo(itemValue)}>
-                <Picker.Item label="Carro" value="carro" />
-                <Picker.Item label="Moto" value="moto" />
+              <Picker selectedValue={veiculo} onValueChange={(itemValue) => {
+                setVeiculo(itemValue);
+                filtraCombustivel(itemValue);
+                }
+              }>
+                {Veiculos.map((veiculo, index) => (
+                  <Picker.Item key={index} label={veiculo} value={veiculo} />
+                ))}
               </Picker>
             </View>
+
             <View style={styles.pickerContainer}>
-              <Picker selectedValue={combustivel} onValueChange={(itemValue) => setCombustivel(itemValue)}>
-                <Picker.Item label="Gasolina" value="gasolina" />
-                <Picker.Item label="Etanol" value="etanol" />
+            <Picker selectedValue={veiculo} onValueChange={(itemValue) => setVeiculo(itemValue)}>
+                {Combustiveis.map((veiculo, index) => (
+                  <Picker.Item key={index} label={veiculo} value={veiculo.toLowerCase()} />
+                ))}
               </Picker>
             </View>
+
             <Pressable onPress={() => setModalVisivel(false)} style={styles.closeButton}>
               <Text style={{ color: "white" }}>Confirmar</Text>
             </Pressable>
+
           </View>
         </View>
       </Modal>

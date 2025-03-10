@@ -1,28 +1,58 @@
-[
+{
+  "veiculos": [
     {
-      "Veículo": "Motocicleta",
-      "Combustível/Motorização": "Gasolina",
-      "Emissões (gCO2/km)": 62.69,
-      "Fonte 1": "Inmetro",
-      "Fonte 2": "",
-      "Explicação": "Emissões de uma motocicleta de amostra"
+      "tipo": "Motocicleta",
+      "combustiveis": [
+        {"tipo": "Gasolina", "emissoes": 62.69},
+        {"tipo": "Etanol", "emissoes": 18.43},
+        {"tipo": "Elétrico (matriz nacional)", "emissoes": 0.77},
+        {"tipo": "Elétrico (energia solar)", "emissoes": 0.77}
+      ]
     },
-
     {
-        "Veículo": "Ônibus",
-        "Combustível/Motorização": "Diesel B10",
-        "Emissões (gCO2/km)": 816.00,
-        "Fonte 1": "Evelyn",
-        "Fonte 2": "",
-        "Explicação": "Emissões do ônibus convêncional"
+      "tipo": "Ônibus",
+      "combustiveis": [
+        {"tipo": "100% Diesel", "emissoes": 832.00},
+        {"tipo": "Diesel B10", "emissoes": 816.00},
+        {"tipo": "Elétrico (matriz nacional)", "emissoes": 49.90},
+        {"tipo": "Elétrico (100% renovável)", "emissoes": 53.78}
+      ]
     },
-    
     {
-    "Veículo": "Carro Compacto",
-    "Combustível/Motorização": "ICEVs flex - Etanol Hidratado",
-    "Emissões (gCO2/km)": 107.00,
-    "Fonte 1": "ICCT",
-    "Fonte 2": "Inmetro",
-    "Explicação": "Carro compacto popular 2023, de combustão interna, emissão no ciclo de vida, operando exclusivamente com Etanol Hidratado"
+      "tipo": "Carro Compacto",
+      "combustiveis": [
+        {"tipo": "Gasolina ou Etanol", "emissoes": 95.00}
+      ]
+    },
+    {
+      "tipo": "Carro Médio",
+      "combustiveis": [
+        {"tipo": "Gasolina ou Etanol", "emissoes": 105.00}
+      ]
+    },
+    {
+      "tipo": "Carro Grande",
+      "combustiveis": [
+        {"tipo": "Gasolina ou Etanol", "emissoes": 112.00}
+      ]
+    },
+    {
+      "tipo": "Carro Extra Grande",
+      "combustiveis": [
+        {"tipo": "Gasolina ou Etanol", "emissoes": 150.00}
+      ]
+    },
+    {
+      "tipo": "Carro Elétrico",
+      "combustiveis": [
+        {"tipo": "Elétrico (Matriz Nacional)", "emissoes": 11.00}
+      ]
+    },
+    {
+      "tipo": "Carro Híbrido",
+      "combustiveis": [
+        {"tipo": "Mix de Combustíveis", "emissoes": 55.00}
+      ]
     }
-]
+  ]
+}
