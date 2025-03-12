@@ -2,7 +2,7 @@ import { View, Text, StyleSheet} from 'react-native';
 import Button from '@/components/Button';
 import ImageViewer from '@/components/ImageViewer';
 
-const PlaceholderImage = require("../../assets/images/logo-rota-verde.png")
+const PlaceholderImage = require("../../assets/images/tabela.jpeg")
 
 export default function DadosScreen() {
     return (
