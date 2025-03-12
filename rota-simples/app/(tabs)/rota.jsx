@@ -6,6 +6,7 @@ import polyline from '@mapbox/polyline';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import { Picker } from '@react-native-picker/picker';
 import dadosVeiculos from '../../data/veiculos.json';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Armazena todas as opções de veículos
 let Veiculos = dadosVeiculos.veiculos.map(veiculo => veiculo.tipo).filter(tipo => tipo.toLowerCase().includes("carro"));
@@ -15,7 +16,19 @@ const equivalentes = {
   "transit": "Ônibus",
 };
 
-let Combustiveis = dadosVeiculos.veiculos.map(veiculo => veiculo.combustiveis).flat().map(combustivel => combustivel.tipo);
+// Extrai as emissões
+const emissoes = dadosVeiculos.veiculos.flatMap(veiculo =>
+  veiculo.combustiveis.map(combustivel => combustivel.emissoes)
+);
+
+// Define mínimo e máximo
+const X_min = Math.min(...emissoes);
+const X_max = Math.max(...emissoes);
+
+// Função para normalizar a emissão entre 0 e 100
+const normalizarEmissao = (X) => ((X - X_min) / (X_max - X_min)) * 95;
+
+// let Combustiveis = dadosVeiculos.veiculos.map(veiculo => veiculo.combustiveis).flat().map(combustivel => combustivel.tipo);
 
 const Rota = () => {
   const [origem, setOrigem] = useState(null);
@@ -26,6 +39,23 @@ const Rota = () => {
   const [veiculo, setVeiculo] = useState("Carro Compacto");
   const [combustivel, setCombustivel] = useState("Gasolina ou Etanol");
   const mapRef = useRef(null);
+  const [Combustiveis, setCombustiveis] = useState(dadosVeiculos.veiculos.map(veiculo => veiculo.combustiveis).flat().map(combustivel => combustivel.tipo));
+  const [valorEmissao, setValorEmissao] = useState(100);
+  const [valorRealEmissao, setValorRealEmissao] = useState(null);
+  const [distancia, setDistancia] = useState(null);
+
+  useEffect(() => {
+    if (Veiculos.length > 0) {
+      setVeiculo(Veiculos[0]); // Define o primeiro veículo da lista
+      filtraCombustivel(Veiculos[0]); // Filtra os combustíveis para esse veículo
+    }
+  }, [modoTransporte]); // Dispara sempre que o modo de transporte mudar
+
+  useEffect(() => {
+    if (veiculo && combustivel) {
+      escalaEmissao(veiculo, combustivel);
+    }
+  }, [combustivel, veiculo]);
 
   useEffect(() => {
     if (origem && destino) {
@@ -46,6 +76,12 @@ const Rota = () => {
         const decodedRoute = decodePolyline(pontos);
         setRota(decodedRoute);
         ajustarZoom(decodedRoute);
+
+        // Captura a distância total da rota em km
+        const distanciaMetros = data.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0);
+        setDistancia(distanciaMetros / 1000); // Convertendo para km
+
+        console.log(distanciaMetros / 1000);
 
         if (["driving", "motorcycle", "transit"].includes(modoTransporte)) {
           setModalVisivel(true);
@@ -86,8 +122,43 @@ const Rota = () => {
     const veiculoSelecionado = dadosVeiculos.veiculos.find(veiculo => veiculo.tipo.toLowerCase() === TipoVeiculo.toLowerCase());
   
     if (veiculoSelecionado) {
-      Combustiveis = veiculoSelecionado.combustiveis.map(combustivel => combustivel.tipo);
+      const novosCombustiveis = veiculoSelecionado.combustiveis.map(combustivel => combustivel.tipo);
+      setCombustiveis(novosCombustiveis);
+      setCombustivel(novosCombustiveis[0]);
     }
+  };
+
+  // Função que coloca o valor de emissão em uma escala de 0 a 100 para representar na barra com o gradiente.
+  const escalaEmissao = (veiculo, combustivel) => {
+
+    veiculo = veiculo.toLowerCase();
+    combustivel = combustivel.toLowerCase();
+
+    // console.log(veiculo);
+    // console.log(combustivel);
+
+    // Encontra o veículo correspondente
+    const veiculoEncontrado = dadosVeiculos.veiculos.find(v => v.tipo.toLowerCase() === veiculo);
+
+    // console.log(veiculoEncontrado);
+
+    if (!veiculoEncontrado) return null; // Veículo não encontrado
+
+    // Encontra o combustível correspondente dentro do veículo
+    const combustivelEncontrado = veiculoEncontrado.combustiveis.find(c => c.tipo.toLowerCase() === combustivel);
+
+    // console.log(combustivelEncontrado);
+
+    if (!combustivelEncontrado) return null; // Combustível não encontrado
+
+    setValorEmissao(normalizarEmissao(combustivelEncontrado.emissoes));
+
+    // console.log(combustivelEncontrado.emissoes); // Retorna o valor da emissão
+    // console.log(normalizarEmissao(combustivelEncontrado.emissoes)); // Retorna o valor da emissão
+
+    // Calculo da emissao real
+    setValorRealEmissao(combustivelEncontrado.emissoes);
+
   };
 
 
@@ -158,17 +229,33 @@ const Rota = () => {
                 }
               }>
                 {Veiculos.map((veiculo, index) => (
-                  <Picker.Item key={index} label={veiculo} value={veiculo} />
+                  <Picker.Item key={index} label={veiculo} value={veiculo.toLowerCase()} />
                 ))}
               </Picker>
             </View>
 
             <View style={styles.pickerContainer}>
-            <Picker selectedValue={veiculo} onValueChange={(itemValue) => setVeiculo(itemValue)}>
-                {Combustiveis.map((veiculo, index) => (
-                  <Picker.Item key={index} label={veiculo} value={veiculo.toLowerCase()} />
+              <Picker selectedValue={combustivel} onValueChange={(itemValue) => {setCombustivel(itemValue)}}>
+                {Combustiveis.map((combustivel, index) => (
+                  <Picker.Item key={index} label={combustivel} value={combustivel.toLowerCase()} />
                 ))}
               </Picker>
+            </View>
+
+            <View style={{ width: "100%", alignItems: "center", marginTop: 20 }}>
+
+            <Text>Emissões de CO₂: {distancia ? ` ${distancia.toFixed(2)*valorRealEmissao} gCO₂` : ""}</Text>
+
+              <View style={styles.gradientBarContainer}>
+                <LinearGradient
+                  colors={["green", "yellow", "orange", "red"]}
+                  start={[0, 0]}
+                  end={[1, 0]}
+                  style={styles.gradientBar}
+                />
+                <View style={[styles.indicator, { left: `${valorEmissao}%` }]} />
+              </View>
+
             </View>
 
             <Pressable onPress={() => setModalVisivel(false)} style={styles.closeButton}>
@@ -184,14 +271,73 @@ const Rota = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  autocomplete: { container: { flex: 0 }, textInput: { height: 40, borderWidth: 1, borderColor: '#E5E5E5' } },
-  map: { flex: 1 },
-  botoesContainer: { flexDirection: "row", justifyContent: "space-around", marginVertical: 10 },
-  button: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#444", justifyContent: "center", alignItems: "center" },
-  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.5)" },
-  modalContent: { width: 300, padding: 20, backgroundColor: "white", borderRadius: 10, alignItems: "center" },
-  pickerContainer: { width: '100%', height: 50, justifyContent: 'center', backgroundColor: '#f0f0f0', borderRadius: 5, marginVertical: 10 },
-  closeButton: { marginTop: 20, padding: 10, backgroundColor: "#43B877", borderRadius: 5 },
+  autocomplete: {
+    container: { flex: 0 },
+    textInput: { height: 40, borderWidth: 1, borderColor: '#E5E5E5' }
+  },
+  map: {
+    flex: 1
+  },
+  botoesContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginVertical: 10
+  },
+  button: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#444",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)"
+  },
+  modalContent: {
+    width: 300,
+    padding: 20,
+    backgroundColor: "white",
+    borderRadius: 10,
+    alignItems: "center"
+  },
+  pickerContainer: {
+    width: '100%',
+    height: 50,
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 5,
+    marginVertical: 10
+  },
+  closeButton: { 
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: "#43B877",
+    borderRadius: 5
+  },
+  gradientBarContainer: {
+    width: "80%",
+    height: 20,
+    backgroundColor: "#ddd",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginVertical: 10,
+  },
+  gradientBar: {
+    width: "100%",
+    height: "100%",
+  },
+  indicator: {
+    position: "absolute",
+    width: 10,
+    height: 30,
+    backgroundColor: "black",
+    borderRadius: 5,
+    top: -5,
+  },
 });
 
 export default Rota;

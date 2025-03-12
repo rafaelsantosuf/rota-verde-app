@@ -35,7 +35,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{title: "Home", headerShown: false }} />
         <Stack.Screen name="login" options={{title: "Login"}} />
         <Stack.Screen name="cadastro" options={{title: "Cadastro"}} />
-        <Stack.Screen name="(tabs)" options={{title: "Main"}} />
+        <Stack.Screen name="(tabs)" options={{title: ""}} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

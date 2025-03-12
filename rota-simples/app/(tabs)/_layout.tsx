@@ -29,6 +29,7 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen name="rota" options={{
         headerTitle: "Rota",
+        tabBarLabel: "Rota",
         tabBarIcon: ({color}) => (
           <Ionicons 
             name="home" size={30} 
@@ -39,6 +40,7 @@ export default function TabLayout() {
         }} />
       <Tabs.Screen name="dados" options = {{
         headerTitle: "Dados",
+        tabBarLabel: "Dados",
         tabBarIcon: ({color}) => (
           <Ionicons 
             name="folder" size={30}
