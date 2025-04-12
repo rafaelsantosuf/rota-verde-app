@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{title: "Login"}} />
         <Stack.Screen name="cadastro" options={{title: "Cadastro"}} />
         <Stack.Screen name="(tabs)" options={{title: ""}} />
+        <Stack.Screen name="saibamais" options={{title: "Saiba Mais"}} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

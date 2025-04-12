@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Pressable, StyleSheet, Modal, Text } from 'react-native';
+import { View, Pressable, StyleSheet, Modal, Text} from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import polyline from '@mapbox/polyline';
@@ -7,6 +7,8 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import { Picker } from '@react-native-picker/picker';
 import dadosVeiculos from '../../data/veiculos.json';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Link } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Armazena todas as opções de veículos
 let Veiculos = dadosVeiculos.veiculos.map(veiculo => veiculo.tipo).filter(tipo => tipo.toLowerCase().includes("carro"));
@@ -21,12 +23,22 @@ const emissoes = dadosVeiculos.veiculos.flatMap(veiculo =>
   veiculo.combustiveis.map(combustivel => combustivel.emissoes)
 );
 
+
 // Define mínimo e máximo
 const X_min = Math.min(...emissoes);
 const X_max = Math.max(...emissoes);
 
 // Função para normalizar a emissão entre 0 e 100
 const normalizarEmissao = (X) => ((X - X_min) / (X_max - X_min)) * 95;
+
+// Função para calcular a emissão formatada com no máximo uma casa decimal
+const calcularEmissaoFormatada = (distancia, valorEmissao) => {
+  if (!distancia || !valorEmissao) return 0;
+  
+  // Calculate emission and format to one decimal place
+  const emissao = distancia * valorEmissao;
+  return Number(emissao.toFixed(1)); // Convert back to number after formatting
+};
 
 // let Combustiveis = dadosVeiculos.veiculos.map(veiculo => veiculo.combustiveis).flat().map(combustivel => combustivel.tipo);
 
@@ -43,6 +55,8 @@ const Rota = () => {
   const [valorEmissao, setValorEmissao] = useState(100);
   const [valorRealEmissao, setValorRealEmissao] = useState(null);
   const [distancia, setDistancia] = useState(null);
+  // Adicione este estado para rastrear o último veículo selecionado
+  const [ultimoVeiculoSelecionado, setUltimoVeiculoSelecionado] = useState(null);
 
   useEffect(() => {
     if (Veiculos.length > 0) {
@@ -161,12 +175,101 @@ const Rota = () => {
 
   };
 
+// Modifique a função de pressionar o botão
+const handleVeiculoPress = (value) => {
+  // Lista de modos de transporte que devem mostrar o modal
+  const modosComModal = ["driving", "motorcycle", "transit"];
+  
+  // Se já temos origem e destino e clicamos no mesmo veículo motorizado novamente
+  if (origem && destino && modoTransporte === value && modosComModal.includes(value)) {
+    setModalVisivel(!modalVisivel); // Alterna o modal apenas para veículos motorizados
+  } else {
+    setModoTransporte(value);
+    filtraVeiculo(value);
+    setUltimoVeiculoSelecionado(value);
+    // O modal será aberto pelo useEffect quando a rota for buscada
+    // (apenas para veículos motorizados, conforme já implementado na função buscarRota)
+  }
+};
+
+ // Salvar rota
+  const salvarRota = async () => {
+    console.log("Iniciando função salvarRota");
+    console.log("Origem:", origem);
+    console.log("Destino:", destino);
+    console.log("Distância:", distancia);
+    console.log("Valor Real Emissão:", valorRealEmissao);
+    
+    try {
+      if (
+        !origem || !destino || !distancia || !valorRealEmissao ||
+        !origem.latitude || !origem.longitude || !origem.nome ||
+        !destino.latitude || !destino.longitude || !destino.nome
+      ) {
+        console.warn("Dados incompletos, não foi possível salvar.");
+        // Detalhe quais dados estão faltando:
+        if (!origem) console.warn("Origem está ausente");
+        if (!destino) console.warn("Destino está ausente");
+        if (!distancia) console.warn("Distância está ausente");
+        if (!valorRealEmissao) console.warn("Valor de emissão está ausente");
+        if (origem && (!origem.latitude || !origem.longitude || !origem.nome)) 
+          console.warn("Dados da origem estão incompletos");
+        if (destino && (!destino.latitude || !destino.longitude || !destino.nome)) 
+          console.warn("Dados do destino estão incompletos");
+        return;
+      }
+
+      // Obter a data atual
+      const dataAtual = new Date();
+      const dataFormatada = dataAtual.toISOString();
+      
+      // Criar uma chave única usando o timestamp
+      const timestamp = dataAtual.getTime();
+      const chaveUnica = `@rota_${timestamp}`;
+
+      // Calculando a emissão formatada com no máximo uma casa decimal
+      const emissaoFormatada = calcularEmissaoFormatada(distancia, valorRealEmissao);
+
+      const dados = {
+        origem: {
+          nome: origem.nome,
+          latitude: origem.latitude,
+          longitude: origem.longitude,
+        },
+        destino: {
+          nome: destino.nome,
+          latitude: destino.latitude,
+          longitude: destino.longitude,
+        },
+        distancia: distancia, // em km
+        emissao: emissaoFormatada, // gCO₂ formatado com no máximo uma casa decimal
+        data: dataFormatada, // Adiciona a data da viagem
+        dataFormatadaLocal: `${dataAtual.getDate()}/${dataAtual.getMonth() + 1}/${dataAtual.getFullYear()}`, // Data em formato local
+        timestamp: timestamp // Adiciona o timestamp para facilitar ordenação
+      };
+
+      console.log("Preparando para salvar dados:", dados);
+      console.log("Usando chave única:", chaveUnica);
+      
+      // Salvar com chave única baseada em datetime
+      await AsyncStorage.setItem(chaveUnica, JSON.stringify(dados));
+      
+      // Opcionalmente, ainda manter a última rota para acesso rápido
+      await AsyncStorage.setItem('@ultimaRota', JSON.stringify(dados));
+      
+      console.log('Dados salvos com sucesso.');
+    } catch (e) {
+      console.error('Erro ao salvar os dados:', e);
+    }
+  };
+
 
   return (
     <View style={styles.container}>
       <GooglePlacesAutocomplete
         placeholder="Origem"
         onPress={(data, details = null) => setOrigem({
+          nome: data.description,  // Adiciona o nome do local
           latitude: details.geometry.location.lat,
           longitude: details.geometry.location.lng
         })}
@@ -174,10 +277,11 @@ const Rota = () => {
         fetchDetails
         styles={styles.autocomplete}
       />
-      
+
       <GooglePlacesAutocomplete
         placeholder="Destino"
         onPress={(data, details = null) => setDestino({
+          nome: data.description,  // Adiciona o nome do local
           latitude: details.geometry.location.lat,
           longitude: details.geometry.location.lng
         })}
@@ -192,20 +296,18 @@ const Rota = () => {
           { value: "bicycle", icon: "bicycle" },
           { value: "transit", icon: "bus" },
           { value: "motorcycle", icon: "motorcycle" }].map(({ value, icon }) => (
-          <Pressable
-            key={value}
-            onPress={() => {
-              setModoTransporte(value);
-              filtraVeiculo(value);
-            }}
-            style={styles.button}
-          >
-            <Icon 
-              name={icon} 
-              size={24} 
-              color={modoTransporte === value ? "#43B877" : "white"} 
-            />
-          </Pressable>
+          // Então substitua o onPress dos botões de veículo
+        <Pressable
+          key={value}
+          onPress={() => handleVeiculoPress(value)}
+          style={styles.button}
+        >
+          <Icon 
+            name={icon} 
+            size={24} 
+            color={modoTransporte === value ? "#43B877" : "white"} 
+          />
+        </Pressable>
         ))}
       </View>
       
@@ -217,9 +319,16 @@ const Rota = () => {
 
       {/* MODAL */}
       <Modal visible={modalVisivel} animationType="slide" transparent>
-
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            {/* Botão X no canto superior direito */}
+            <Pressable 
+              onPress={() => setModalVisivel(false)} 
+              style={styles.closeIconButton}
+            >
+              <Icon name="times" size={20} color="#666" />
+            </Pressable>
+            
             <Text>Escolha o veículo e o combustível</Text>
 
             <View style={styles.pickerContainer}>
@@ -243,8 +352,7 @@ const Rota = () => {
             </View>
 
             <View style={{ width: "100%", alignItems: "center", marginTop: 20 }}>
-
-            <Text>Emissões de CO₂: {distancia ? ` ${distancia.toFixed(2)*valorRealEmissao} gCO₂` : ""}</Text>
+              <Text>Emissões de CO₂: {distancia ? ` ${calcularEmissaoFormatada(distancia, valorRealEmissao)} gCO₂` : ""}</Text>
 
               <View style={styles.gradientBarContainer}>
                 <LinearGradient
@@ -255,16 +363,26 @@ const Rota = () => {
                 />
                 <View style={[styles.indicator, { left: `${valorEmissao}%` }]} />
               </View>
-
             </View>
 
-            <Pressable onPress={() => setModalVisivel(false)} style={styles.closeButton}>
-              <Text style={{ color: "white" }}>Confirmar</Text>
+            <Pressable onPress={() => 
+              {
+                salvarRota();
+                setModalVisivel(false);
+              }} 
+              style={styles.closeButton}>
+                <Text style={{ color: "white" }}>Confirmar</Text>
             </Pressable>
 
+            <Link href="/saibamais" asChild>
+                <Pressable onPress={() => setModalVisivel(false)}>
+                <Text style={styles.link}>Saiba Mais</Text>
+                </Pressable>
+            </Link>
           </View>
         </View>
       </Modal>
+
     </View>
   );
 };
@@ -302,7 +420,21 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "white",
     borderRadius: 10,
-    alignItems: "center"
+    alignItems: "center",
+    position: "relative" // Importante para posicionar o botão X
+  },
+  // Novo estilo para o botão X
+  closeIconButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10
   },
   pickerContainer: {
     width: '100%',
@@ -316,7 +448,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     padding: 10,
     backgroundColor: "#43B877",
-    borderRadius: 5
+    borderRadius: 5,
   },
   gradientBarContainer: {
     width: "80%",
@@ -337,6 +469,11 @@ const styles = StyleSheet.create({
     backgroundColor: "black",
     borderRadius: 5,
     top: -5,
+  },
+  link: {
+    color: '#1D959C',
+    textDecorationLine: 'underline',
+    marginTop: 20,
   },
 });
 
