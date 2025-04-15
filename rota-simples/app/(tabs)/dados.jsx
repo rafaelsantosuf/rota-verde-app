@@ -2,36 +2,129 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import DADOS_VEICULOS from '../../data/dados_final.json'; // Importando os dados
 
 const Dados = () => {
   const [dados, setDados] = useState({});
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
   const [modalVisivel, setModalVisivel] = useState(false);
-  const [marcaVeiculo, setmarcaVeiculo] = useState('BYD');
-  const [modeloVeiculo, setmodeloVeiculo] = useState('DOLPHIN MINI');
+  const [marcaVeiculo, setMarcaVeiculo] = useState('');
+  const [modeloVeiculo, setModeloVeiculo] = useState('');
+  const [versaoVeiculo, setVersaoVeiculo] = useState('');
+  const [motorVeiculo, setMotorVeiculo] = useState('');
+  const [propulsaoVeiculo, setPropulsaoVeiculo] = useState('');
   const [veiculos, setVeiculos] = useState([]);
-  const [totalEmissoes, setTotalEmissoes] = useState(0); // Novo estado para armazenar o total das emissões
+  const [totalEmissoes, setTotalEmissoes] = useState(0);
+  // Adicionar estado para veículo selecionado
+  const [veiculoSelecionadoId, setVeiculoSelecionadoId] = useState(null);
+
+  // Opções filtradas para cada picker
+  const [marcasDisponiveis, setMarcasDisponiveis] = useState([]);
+  const [modelosDisponiveis, setModelosDisponiveis] = useState([]);
+  const [versoesDisponiveis, setVersoesDisponiveis] = useState([]);
+  const [motoresDisponiveis, setMotoresDisponiveis] = useState([]);
+  const [propulsoesDisponiveis, setPropulsoesDisponiveis] = useState([]);
 
   useEffect(() => {
     carregarTodosDados();
     
-    // Set up listener for route updates
-    const rotaUpdateListener = async () => {
-      // You would implement logic for any event-based updates here
-      // For now, we'll rely on the refresh mechanism
-    };
-    
-    return () => {
-      // Clean up any listeners if needed
-    };
+    // Inicializar as marcas disponíveis
+    const marcas = [...new Set(DADOS_VEICULOS.map(item => item.Marca))];
+    setMarcasDisponiveis(marcas);
+    if (marcas.length > 0) {
+      setMarcaVeiculo(marcas[0]);
+    }
   }, []);
+
+  // Carregar veículo selecionado do AsyncStorage
+  useEffect(() => {
+    carregarVeiculoSelecionado();
+  }, []);
+
+  // Atualizar modelos quando a marca é alterada
+  useEffect(() => {
+    if (marcaVeiculo) {
+      const modelos = [...new Set(DADOS_VEICULOS
+        .filter(item => item.Marca === marcaVeiculo)
+        .map(item => item.Modelo))];
+      
+      setModelosDisponiveis(modelos);
+      
+      if (modelos.length > 0) {
+        setModeloVeiculo(modelos[0]);
+      } else {
+        setModeloVeiculo('');
+      }
+    }
+  }, [marcaVeiculo]);
+
+  // Atualizar versões quando o modelo é alterado
+  useEffect(() => {
+    if (modeloVeiculo) {
+      const versoes = [...new Set(DADOS_VEICULOS
+        .filter(item => item.Marca === marcaVeiculo && item.Modelo === modeloVeiculo)
+        .map(item => item.Versao))];
+      
+      setVersoesDisponiveis(versoes);
+      
+      if (versoes.length > 0) {
+        setVersaoVeiculo(versoes[0]);
+      } else {
+        setVersaoVeiculo('');
+      }
+    }
+  }, [marcaVeiculo, modeloVeiculo]);
+
+  // Atualizar motores quando a versão é alterada
+  useEffect(() => {
+    if (versaoVeiculo) {
+      const motores = [...new Set(DADOS_VEICULOS
+        .filter(item => 
+          item.Marca === marcaVeiculo && 
+          item.Modelo === modeloVeiculo && 
+          item.Versao === versaoVeiculo
+        )
+        .map(item => item.Motor))];
+      
+      setMotoresDisponiveis(motores);
+      
+      if (motores.length > 0) {
+        setMotorVeiculo(motores[0]);
+      } else {
+        setMotorVeiculo('');
+      }
+    }
+  }, [marcaVeiculo, modeloVeiculo, versaoVeiculo]);
+
+  // Atualizar propulsões quando o motor é alterado
+  useEffect(() => {
+    if (motorVeiculo) {
+      const propulsoes = [...new Set(DADOS_VEICULOS
+        .filter(item => 
+          item.Marca === marcaVeiculo && 
+          item.Modelo === modeloVeiculo && 
+          item.Versao === versaoVeiculo && 
+          item.Motor === motorVeiculo
+        )
+        .map(item => item["Tipo de Propulsao\nCombustão Hibrido Plug-in Eletrico"]))];
+      
+      setPropulsoesDisponiveis(propulsoes);
+      
+      if (propulsoes.length > 0) {
+        setPropulsaoVeiculo(propulsoes[0]);
+      } else {
+        setPropulsaoVeiculo('');
+      }
+    }
+  }, [marcaVeiculo, modeloVeiculo, versaoVeiculo, motorVeiculo]);
 
   const carregarTodosDados = async () => {
     try {
       setCarregando(true);
       await carregarRotas();
       await carregarVeiculos();
+      await carregarVeiculoSelecionado();
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setErro('Falha ao carregar os dados.');
@@ -78,6 +171,28 @@ const Dados = () => {
     }
   };
 
+  // Função para carregar veículo selecionado
+  const carregarVeiculoSelecionado = async () => {
+    try {
+      const veiculoSelecionadoStr = await AsyncStorage.getItem('@veiculo_selecionado');
+      if (veiculoSelecionadoStr) {
+        setVeiculoSelecionadoId(veiculoSelecionadoStr);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar veículo selecionado:', error);
+    }
+  };
+
+  // Função para salvar veículo selecionado
+  const salvarVeiculoSelecionado = async (id) => {
+    try {
+      await AsyncStorage.setItem('@veiculo_selecionado', id);
+      setVeiculoSelecionadoId(id);
+    } catch (error) {
+      console.error('Erro ao salvar veículo selecionado:', error);
+    }
+  };
+
   // Function to handle new route additions
   const atualizarAposNovaRota = async () => {
     try {
@@ -92,7 +207,7 @@ const Dados = () => {
   const carregarVeiculos = async () => {
     try {
       const chaves = await AsyncStorage.getAllKeys();
-      const chavesVeiculos = chaves.filter(chave => chave.startsWith('@veiculo_'));
+      const chavesVeiculos = chaves.filter(chave => chave.startsWith('@veiculo_') && chave !== '@veiculo_selecionado');
       
       if (chavesVeiculos.length > 0) {
         const dadosVeiculos = await AsyncStorage.multiGet(chavesVeiculos);
@@ -126,12 +241,34 @@ const Dados = () => {
           onPress: async () => {
             try {
               await AsyncStorage.removeItem(id);
+              
+              // Se o veículo sendo apagado for o selecionado, remover seleção
+              if (id === veiculoSelecionadoId) {
+                await AsyncStorage.removeItem('@veiculo_selecionado');
+                setVeiculoSelecionadoId(null);
+              }
+              
               setVeiculos(veiculos.filter(veiculo => veiculo.id !== id));
             } catch (error) {
               console.error('Erro ao apagar veículo:', error);
               Alert.alert("Erro", "Não foi possível apagar o veículo.");
             }
           }
+        }
+      ]
+    );
+  };
+
+  // Função para manipular o pressionar e segurar em um veículo
+  const handleLongPress = (id) => {
+    Alert.alert(
+      "Selecionar Veículo",
+      "Deseja selecionar este veículo para cálculos de emissão?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Selecionar", 
+          onPress: () => salvarVeiculoSelecionado(id)
         }
       ]
     );
@@ -196,9 +333,30 @@ const Dados = () => {
   // Função para salvar o veículo
   const salvarVeiculo = async () => {
     try {
+      // Encontrar o veículo correspondente no JSON com base nas seleções
+      const veiculoSelecionado = DADOS_VEICULOS.find(item => 
+        item.Marca === marcaVeiculo && 
+        item.Modelo === modeloVeiculo && 
+        item.Versao === versaoVeiculo && 
+        item.Motor === motorVeiculo && 
+        item["Tipo de Propulsao\nCombustão Hibrido Plug-in Eletrico"] === propulsaoVeiculo
+      );
+      
+      // Se não encontrar o veículo, lançar erro
+      if (!veiculoSelecionado) {
+        throw new Error('Veículo não encontrado nos dados');
+      }
+      
       const novoVeiculo = {
         marca: marcaVeiculo,
         modelo: modeloVeiculo,
+        versao: versaoVeiculo,
+        motor: motorVeiculo,
+        propulsao: propulsaoVeiculo,
+        // Adicionando os novos campos do JSON
+        etanol: veiculoSelecionado.Etanol || 0,
+        gasolinaDiesel: veiculoSelecionado.GasolinaDiesel || 0,
+        vehp: veiculoSelecionado.VEHP || 0,
         dataCadastro: new Date().toISOString(),
       };
       
@@ -206,11 +364,19 @@ const Dados = () => {
       await AsyncStorage.setItem(id, JSON.stringify(novoVeiculo));
       
       // Adicionar o novo veículo à lista local
-      setVeiculos([...veiculos, { id, ...novoVeiculo }]);
+      const novoVeiculoComId = { id, ...novoVeiculo };
+      setVeiculos([...veiculos, novoVeiculoComId]);
       
-      // Resetar os campos do formulário
-      setmarcaVeiculo('BYD');
-      setmodeloVeiculo('DOLPHIN MINI');
+      // Resetar seleção para valores padrão
+      const marcas = [...new Set(DADOS_VEICULOS.map(item => item.Marca))];
+      if (marcas.length > 0) {
+        setMarcaVeiculo(marcas[0]);
+      }
+      
+      // Se não houver veículo selecionado ainda, selecionar automaticamente este
+      if (!veiculoSelecionadoId) {
+        await salvarVeiculoSelecionado(id);
+      }
       
     } catch (error) {
       console.error('Erro ao salvar veículo:', error);
@@ -220,46 +386,48 @@ const Dados = () => {
     fecharModal();
   };
 
-  // Função para adicionar uma nova rota e atualizar os dados
-  const adicionarNovaRota = async (novaRota) => {
-    try {
-      const id = `@rota_${Date.now()}`;
-      await AsyncStorage.setItem(id, JSON.stringify(novaRota));
-      
-      // Atualizar os dados na tela
-      await atualizarAposNovaRota();
-      
-      return true;
-    } catch (error) {
-      console.error('Erro ao adicionar nova rota:', error);
-      return false;
-    }
-  };
-
   // Renderizar a lista de veículos
   const renderizarVeiculos = () => {
     if (veiculos.length === 0) {
       return <Text style={styles.mensagem}>Nenhum veículo cadastrado.</Text>;
     }
 
-    return veiculos.map((veiculo) => (
-      <View key={veiculo.id} style={styles.veiculoItem}>
-        <View style={styles.veiculoConteudo}>
-          <Text style={styles.veiculoInfo}>
-            Marca: {veiculo.marca}
-          </Text>
-          <Text style={styles.veiculoInfo}>
-            Modelo: {veiculo.modelo}
-          </Text>
-        </View>
+    return veiculos.map((veiculo) => {
+      // Determinar se este é o veículo selecionado
+      const isSelected = veiculo.id === veiculoSelecionadoId;
+      
+      // Estilo condicional baseado na seleção
+      const veiculoEstilo = isSelected ? 
+        {...styles.veiculoItem, ...styles.veiculoItemSelecionado} : 
+        styles.veiculoItem;
+      
+      return (
         <Pressable 
-          style={styles.deleteButton} 
-          onPress={() => apagarVeiculo(veiculo.id)}
+          key={veiculo.id} 
+          style={veiculoEstilo}
+          onLongPress={() => handleLongPress(veiculo.id)}
+          delayLongPress={500} // Meio segundo para acionar o long press
         >
-          <Text style={styles.deleteButtonText}>X</Text>
+          <View style={styles.veiculoConteudo}>
+            <Text style={styles.veiculoInfo}>
+              Marca: {veiculo.marca}
+            </Text>
+            <Text style={styles.veiculoInfo}>
+              Modelo: {veiculo.modelo}
+            </Text>
+            {isSelected && (
+              <Text style={styles.veiculoSelecionadoTexto}>✓ Selecionado</Text>
+            )}
+          </View>
+          <Pressable 
+            style={styles.deleteButton} 
+            onPress={() => apagarVeiculo(veiculo.id)}
+          >
+            <Text style={styles.deleteButtonText}>X</Text>
+          </Pressable>
         </Pressable>
-      </View>
-    ));
+      );
+    });
   };
 
   // Renderiza cada item de dados no formato solicitado
@@ -309,6 +477,82 @@ const Dados = () => {
     });
   };
 
+  // Renderizar os pickers no modal
+  const renderizarPickers = () => {
+    return (
+      <>
+        <Text style={styles.label}>Marca</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={marcaVeiculo}
+            onValueChange={(itemValue) => setMarcaVeiculo(itemValue)}
+            style={styles.picker}
+          >
+            {marcasDisponiveis.map((marca) => (
+              <Picker.Item key={marca} label={marca} value={marca} />
+            ))}
+          </Picker>
+        </View>
+        
+        <Text style={styles.label}>Modelo</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={modeloVeiculo}
+            onValueChange={(itemValue) => setModeloVeiculo(itemValue)}
+            style={styles.picker}
+            enabled={modelosDisponiveis.length > 0}
+          >
+            {modelosDisponiveis.map((modelo) => (
+              <Picker.Item key={modelo} label={modelo} value={modelo} />
+            ))}
+          </Picker>
+        </View>
+        
+        <Text style={styles.label}>Versão</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={versaoVeiculo}
+            onValueChange={(itemValue) => setVersaoVeiculo(itemValue)}
+            style={styles.picker}
+            enabled={versoesDisponiveis.length > 0}
+          >
+            {versoesDisponiveis.map((versao) => (
+              <Picker.Item key={versao} label={versao} value={versao} />
+            ))}
+          </Picker>
+        </View>
+        
+        <Text style={styles.label}>Motor</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={motorVeiculo}
+            onValueChange={(itemValue) => setMotorVeiculo(itemValue)}
+            style={styles.picker}
+            enabled={motoresDisponiveis.length > 0}
+          >
+            {motoresDisponiveis.map((motor) => (
+              <Picker.Item key={motor} label={motor} value={motor} />
+            ))}
+          </Picker>
+        </View>
+        
+        <Text style={styles.label}>Tipo de Propulsão</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={propulsaoVeiculo}
+            onValueChange={(itemValue) => setPropulsaoVeiculo(itemValue)}
+            style={styles.picker}
+            enabled={propulsoesDisponiveis.length > 0}
+          >
+            {propulsoesDisponiveis.map((propulsao) => (
+              <Picker.Item key={propulsao} label={propulsao} value={propulsao} />
+            ))}
+          </Picker>
+        </View>
+      </>
+    );
+  };
+
   // Conteúdo do modal para adicionar veículo
   const renderizarModal = () => {
     return (
@@ -326,37 +570,18 @@ const Dados = () => {
               <Text>X</Text>
             </Pressable>
             
-            <Text style={styles.label}>Marca</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={marcaVeiculo}
-                onValueChange={(itemValue) => setmarcaVeiculo(itemValue)}
-                style={styles.picker}
-              >
-                <Picker.Item label="BYD" value="BYD" />
-                <Picker.Item label="CAOA CHERY" value="CAOA CHERY" />
-                <Picker.Item label="TESTE" value="TESTE" />
-              </Picker>
-            </View>
-            
-            <Text style={styles.label}>Modelo</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={modeloVeiculo}
-                onValueChange={(itemValue) => setmodeloVeiculo(itemValue)}
-                style={styles.picker}
-              >
-                <Picker.Item label="DOLPHIN MINI" value="DOLPHIN MINI" />
-                <Picker.Item label="ICAR EQ1" value="ICAR EQ1" />
-              </Picker>
-            </View>
+            {renderizarPickers()}
             
             <View style={styles.botoesContainer}>
               <Pressable style={styles.closeButton} onPress={fecharModal}>
                 <Text style={styles.buttonText}>Cancelar</Text>
               </Pressable>
               
-              <Pressable style={[styles.closeButton, styles.saveButton]} onPress={salvarVeiculo}>
+              <Pressable 
+                style={[styles.closeButton, styles.saveButton]} 
+                onPress={salvarVeiculo}
+                disabled={!marcaVeiculo || !modeloVeiculo || !versaoVeiculo || !motorVeiculo || !propulsaoVeiculo}
+              >
                 <Text style={styles.buttonText}>Salvar</Text>
               </Pressable>
             </View>
@@ -474,7 +699,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    marginTop: 10, // Adicionado espaço entre o título e o container
+    marginTop: 10,
     borderWidth: 1,
     borderColor: '#43b877',
   },
@@ -516,7 +741,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   veiculosScroll: {
-    maxHeight: 78, // Limita a altura da lista de veículos
+    maxHeight: 120, // Aumentado para acomodar o texto "Selecionado"
     marginBottom: 20,
   },
   veiculosContent: {
@@ -532,6 +757,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  // Estilo para veículo selecionado
+  veiculoItemSelecionado: {
+    backgroundColor: '#d4f5e2',
+    borderLeftColor: '#2b9d5f',
+    borderWidth: 1,
+    borderColor: '#43b877',
+  },
+  veiculoSelecionadoTexto: {
+    color: '#2b9d5f',
+    fontWeight: 'bold',
+    fontSize: 13,
+    marginTop: 4,
   },
   veiculoConteudo: {
     flex: 1,
@@ -611,6 +849,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     position: 'relative',
+    maxHeight: '80%',
   },
   closeIconButton: {
     position: 'absolute',
@@ -645,7 +884,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#f0f0f0',
     borderRadius: 5,
-    marginVertical: 10,
+    marginVertical: 5,
   },
   picker: {
     width: '100%',
