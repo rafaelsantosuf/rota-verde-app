@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   veiculosScroll: {
-    maxHeight: 120, // Aumentado para acomodar o texto "Selecionado"
+    maxHeight: 102, // Aumentado para acomodar o texto "Selecionado"
     marginBottom: 20,
   },
   veiculosContent: {

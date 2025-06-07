@@ -70,8 +70,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   img: {
-    width: 150,
-    height: 150,
+    width: 200,
+    height: 200,
     marginTop: 0,
     marginBottom: 30,
 

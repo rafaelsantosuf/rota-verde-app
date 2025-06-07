@@ -9,12 +9,22 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.rafaelz.rotasimples",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA"
+        }
       }
     },
     "web": {
@@ -37,6 +47,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "fe0fca48-4508-4f87-a2d9-dac5fe354605"
+      }
+    },
+    "owner": "rafaelz"
   }
 }

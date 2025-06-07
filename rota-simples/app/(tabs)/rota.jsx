@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Pressable, StyleSheet, Modal, Text} from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import { View, Pressable, StyleSheet, Modal, Text, Image } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import polyline from '@mapbox/polyline';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -26,13 +26,6 @@ const emissoesPorModo = {
   "motorcycle": 1,   // Moto
 };
 
-// Define mínimo e máximo (mantido para escala visual)
-// const X_min = 0;
-// const X_max = 200;
-
-// Função para normalizar a emissão entre 0 e 100
-// const normalizarEmissao = (X) => ((X - X_min) / (X_max - X_min)) * 95;
-
 // Função para calcular a emissão formatada com no máximo uma casa decimal
 const calcularEmissaoFormatada = (distancia, valorEmissao) => {
   if (!distancia || valorEmissao === null) return 0;
@@ -48,12 +41,18 @@ const Rota = () => {
   const [rota, setRota] = useState(null);
   const [modoTransporte, setModoTransporte] = useState("driving");
   const [modalVisivel, setModalVisivel] = useState(false);
+  const [modalWIPVisivel, setModalWIPVisivel] = useState(false); // Modal Work in Progress
   const mapRef = useRef(null);
-  // const [valorEmissao, setValorEmissao] = useState(0); // Comentado - usado para o gráfico
   const [valorRealEmissao, setValorRealEmissao] = useState(null);
   const [distancia, setDistancia] = useState(null);
   const [ultimoVeiculoSelecionado, setUltimoVeiculoSelecionado] = useState(null);
   const [veiculoSelecionado, setVeiculoSelecionado] = useState(null);
+  const [initialRegion, setInitialRegion] = useState({
+    latitude: -23.55, // Use uma localização padrão (Brasil neste exemplo)
+    longitude: -46.63,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
 
   // Adicione isto logo após as declarações de useState
   useFocusEffect(
@@ -71,7 +70,6 @@ const Rota = () => {
     } else {
       // Para outros modos de transporte, usar valores fixos
       setValorRealEmissao(emissoesPorModo[modoTransporte] || 0);
-      // setValorEmissao(normalizarEmissao(emissoesPorModo[modoTransporte] || 0)); // Comentado
     }
   }, [modoTransporte]);
 
@@ -122,28 +120,62 @@ const Rota = () => {
   };
 
   const buscarRota = async () => {
-    if (!origem || !destino) return;
-
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origem.latitude},${origem.longitude}&destination=${destino.latitude},${destino.longitude}&mode=${modoTransporte}&departure_time=now&alternatives=false&key=AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA`;
-
+    if (!origem || !destino) {
+      console.log('Origem ou destino não definidos');
+      return;
+    }
+  
+    // Verificar se é um modo de transporte "work in progress"
+    if (modoTransporte === "transit" || modoTransporte === "motorcycle") {
+      console.log('Modo de transporte em desenvolvimento:', modoTransporte);
+      setModalWIPVisivel(true);
+      return;
+    }
+  
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origem.latitude},${origem.longitude}&destination=${destino.latitude},${destino.longitude}&mode=${modoTransporte}&departure_time=now&alternatives=false&key=minha_chave`;
+    
+    console.log('URL da requisição:', url.replace(/key=([^&]*)/, 'key=XXXXX')); // Log URL with hidden key
+  
     try {
+      console.log('Iniciando requisição para API de direções');
       const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error('Resposta de rede não ok:', response.status, response.statusText);
+        return;
+      }
+      
       const data = await response.json();
-      if (data.routes.length) {
+      console.log('API Response status:', data.status);
+      
+      if (data.status && data.status !== 'OK') {
+        console.error('Erro da API:', data.status, data.error_message || 'Sem mensagem de erro');
+        // Aqui você poderia mostrar uma mensagem ao usuário
+        return;
+      }
+      
+      if (data.routes && data.routes.length) {
+        console.log('Rota encontrada com sucesso');
         const pontos = data.routes[0].overview_polyline.points;
         const decodedRoute = decodePolyline(pontos);
         setRota(decodedRoute);
         ajustarZoom(decodedRoute);
-
+  
         // Captura a distância total da rota em km
         const distanciaMetros = data.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0);
         setDistancia(distanciaMetros / 1000); // Convertendo para km
-
+        console.log('Distância calculada:', distanciaMetros / 1000, 'km');
+  
         // Agora mostra o modal para todos os modos de transporte
         setModalVisivel(true);
+      } else {
+        console.warn('Nenhuma rota encontrada nos dados retornados');
+        console.log('Dados completos da resposta:', JSON.stringify(data));
       }
     } catch (error) {
       console.error('Erro ao buscar rota:', error);
+      console.error('Stack de erro:', error.stack);
+      // Aqui você poderia mostrar uma mensagem de erro ao usuário
     }
   };
 
@@ -163,14 +195,17 @@ const Rota = () => {
 
   // Função para lidar com o clique no botão de veículo
   const handleVeiculoPress = (value) => {
-    if (origem && destino && modoTransporte === value) {
-      // Se já temos origem e destino e clicamos no mesmo veículo novamente
-      setModalVisivel(!modalVisivel); // Alterna o modal
-    } else {
-      // Mudamos o modo de transporte
-      setModoTransporte(value);
-      setUltimoVeiculoSelecionado(value);
-      // O modal será aberto pelo useEffect quando a rota for buscada
+    // Fechar os modais primeiro
+    setModalVisivel(false);
+    setModalWIPVisivel(false);
+    
+    // Definir o novo modo de transporte
+    setModoTransporte(value);
+    setUltimoVeiculoSelecionado(value);
+    
+    // Se já temos origem e destino, buscar a rota (que vai mostrar o modal apropriado)
+    if (origem && destino) {
+      // A busca da rota é chamada pelo useEffect quando modoTransporte muda
     }
   };
 
@@ -251,7 +286,7 @@ const Rota = () => {
           latitude: details.geometry.location.lat,
           longitude: details.geometry.location.lng
         })}
-        query={{ key: 'AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA', language: 'pt-BR' }}
+        query={{ key: 'minha_chave', language: 'pt-BR' }}
         fetchDetails
         styles={styles.autocomplete}
       />
@@ -263,7 +298,7 @@ const Rota = () => {
           latitude: details.geometry.location.lat,
           longitude: details.geometry.location.lng
         })}
-        query={{ key: 'AIzaSyDHJ80nB7ohZ_rKVGfKBYCPdQWUDG76qrA', language: 'pt-BR' }}
+        query={{ key: 'minha_chave', language: 'pt-BR' }}
         fetchDetails
         styles={styles.autocomplete}
       />
@@ -288,13 +323,18 @@ const Rota = () => {
         ))}
       </View>
       
-      <MapView ref={mapRef} style={styles.map}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={initialRegion}
+        provider={PROVIDER_GOOGLE}
+        googleMapsApiKey="minha_chave">
         {origem && <Marker coordinate={origem} title="Origem" />}
         {destino && <Marker coordinate={destino} title="Destino" />}
         {rota && <Polyline coordinates={rota} strokeWidth={4} strokeColor="blue" />}
       </MapView>
 
-      {/* MODAL SIMPLIFICADO */}
+      {/* MODAL CONFIRMAÇÃO NORMAL */}
       <Modal visible={modalVisivel} animationType="slide" transparent>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -318,18 +358,6 @@ const Rota = () => {
               <Text style={styles.emissaoText}>
                 Emissões de CO₂: {distancia ? ` ${calcularEmissaoFormatada(distancia, valorRealEmissao)} gCO₂` : ""}
               </Text>
-
-              {/* Gráfico Linear Comentado 
-              <View style={styles.gradientBarContainer}>
-                <LinearGradient
-                  colors={["green", "yellow", "orange", "red"]}
-                  start={[0, 0]}
-                  end={[1, 0]}
-                  style={styles.gradientBar}
-                />
-                <View style={[styles.indicator, { left: `${valorEmissao}%` }]} />
-              </View>
-              */}
             </View>
 
             <Pressable 
@@ -347,6 +375,43 @@ const Rota = () => {
                 <Text style={styles.link}>Saiba Mais</Text>
               </Pressable>
             </Link>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL WORK IN PROGRESS */}
+      <Modal visible={modalWIPVisivel} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Pressable 
+              onPress={() => setModalWIPVisivel(false)} 
+              style={styles.closeIconButton}
+            >
+              <Icon name="times" size={20} color="#666" />
+            </Pressable>
+            
+            <Icon name="tools" size={50} color="#43B877" style={styles.wipIcon} />
+            
+            <Text style={styles.modalTitle}>Em Desenvolvimento</Text>
+            
+            <Text style={styles.wipText}>
+              O cálculo de emissões para {equivalentes[modoTransporte]} ainda está sendo implementado. 
+              Esta funcionalidade estará disponível em breve!
+            </Text>
+            
+            <View style={styles.separador} />
+            
+            <Text style={styles.wipSubText}>
+              Por enquanto, você pode utilizar as opções "Carro", "A pé" ou "Bicicleta" 
+              para calcular suas emissões.
+            </Text>
+            
+            <Pressable 
+              onPress={() => setModalWIPVisivel(false)} 
+              style={styles.confirmButton}
+            >
+              <Text style={{ color: "white" }}>Entendi</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -437,28 +502,6 @@ const styles = StyleSheet.create({
     color: "#444",
     marginBottom: 10
   },
-  /* Estilos do gráfico comentados
-  gradientBarContainer: {
-    width: "80%",
-    height: 20,
-    backgroundColor: "#ddd",
-    borderRadius: 10,
-    overflow: "hidden",
-    marginVertical: 10,
-  },
-  gradientBar: {
-    width: "100%",
-    height: "100%",
-  },
-  indicator: {
-    position: "absolute",
-    width: 10,
-    height: 30,
-    backgroundColor: "black",
-    borderRadius: 5,
-    top: -5,
-  },
-  */
   confirmButton: { 
     marginTop: 20,
     padding: 10,
@@ -471,6 +514,30 @@ const styles = StyleSheet.create({
     color: '#1D959C',
     textDecorationLine: 'underline',
     marginTop: 20,
+  },
+  // Estilos para o modal Work in Progress
+  wipIcon: {
+    marginBottom: 15,
+    marginTop: 10,
+  },
+  wipText: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 15,
+    lineHeight: 22,
+  },
+  wipSubText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  separador: {
+    height: 1,
+    backgroundColor: "#e0e0e0",
+    width: "80%",
+    marginVertical: 15,
   },
 });
 
